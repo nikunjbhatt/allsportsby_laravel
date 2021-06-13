@@ -19,8 +19,44 @@ class SupplierTest extends TestCase
      */
     public function testCalculateAmountOfHoursDuringTheWeekSuppliersAreWorking()
     {
-        $response = $this->get('/api/suppliers');
-        $hours = NAN;
+		$response = $this->get('/api/suppliers');
+		$suppliers = \json_decode($response->getContent(), true)['data']['suppliers'];
+ 
+		$calcTotalHoursOfDay = function(String $hours) {
+			$total = 0;
+			$timeSlots = explode(',', $hours); // separating time slots
+			
+			for($i = 0, $c = count($timeSlots); $i < $c; $i++) {
+				list($open, $close) = explode('-', $timeSlots[$i]); // separating open and close time from the time slot
+				
+				$oDateTime = \DateTime::createFromFormat('G:i', $open, new \DateTimeZone('UTC'));
+				$cDateTime = \DateTime::createFromFormat('G:i', $close, new \DateTimeZone('UTC'));
+
+				$duration = $oDateTime->diff($cDateTime); // calculate difference between open and close time
+				$minutes = ($duration->format('%h') * 60) + $duration->format('%i'); // calculate total minutes
+				$total += $minutes / 60;
+			}
+			
+			return $total;		
+		};
+		
+		$hours = 0;
+		//print_r($suppliers);
+		for($i = 0, $c = count($suppliers); $i < $c; $i++) {
+			// separating slots with space and sending second element of the time slot only to the function
+			// (discarding first element of name of the day).
+			$arHours = [
+				$calcTotalHoursOfDay(explode(' ', $suppliers[$i]['mon'])[1]),
+				$calcTotalHoursOfDay(explode(' ', $suppliers[$i]['tue'])[1]),
+				$calcTotalHoursOfDay(explode(' ', $suppliers[$i]['wed'])[1]),
+				$calcTotalHoursOfDay(explode(' ', $suppliers[$i]['thu'])[1]),
+				$calcTotalHoursOfDay(explode(' ', $suppliers[$i]['fri'])[1]),
+				$calcTotalHoursOfDay(explode(' ', $suppliers[$i]['sat'])[1]),
+				$calcTotalHoursOfDay(explode(' ', $suppliers[$i]['sun'])[1])
+			];
+			
+			$hours += array_sum($arHours);
+		}
 
         $response->assertStatus(200);
         $this->assertEquals(136, $hours,
@@ -40,7 +76,7 @@ class SupplierTest extends TestCase
         $responseList = $this->get('/api/suppliers');
         $supplier = \json_decode($responseList->getContent(), true)['data']['suppliers'][0];
 
-        $response = $this->post('/api/suppliers', $supplier);
+        $response = $this->postJson('/api/suppliers', $supplier);
 
         $response->assertStatus(204);
         $this->assertEquals(1, Supplier::query()->count());
@@ -52,7 +88,7 @@ class SupplierTest extends TestCase
         $this->assertNotNull($dbSupplier->district);
 
 
-        $response = $this->post('/api/suppliers', $supplier);
+        $response = $this->postJson('/api/suppliers', $supplier);
         $response->assertStatus(422);
     }
 }

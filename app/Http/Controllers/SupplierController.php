@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Supplier;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class SupplierController extends Controller
 {
@@ -37,6 +38,13 @@ class SupplierController extends Controller
      */
     public function store(Request $request)
     {
+		$request->validate([
+			'name' => 'bail|required|unique:suppliers'
+		]);
+		
+		Supplier::create($request->all());
+
+        return response()->json([], 204);
     }
 
     /**
